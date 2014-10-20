@@ -10,31 +10,31 @@ include $(TOPDIR)/rules.mk
 include $(INCLUDE_DIR)/kernel.mk
 include $(INCLUDE_DIR)/version.mk
 
-PKG_NAME:=base-files
+PKG_NAME:=meos-files
 PKG_RELEASE:=118.2
 
-PKG_FILE_DEPENDS:=$(PLATFORM_DIR)/ $(GENERIC_PLATFORM_DIR)/base-files/
+PKG_FILE_DEPENDS:=$(PLATFORM_DIR)/ $(GENERIC_PLATFORM_DIR)/meos-files/
 PKG_BUILD_DEPENDS:=opkg/host
 
 include $(INCLUDE_DIR)/package.mk
 
 ifneq ($(DUMP),1)
   TARGET:=-$(BOARD)
-  ifneq ($(wildcard $(PLATFORM_DIR)/base-files-$(PROFILE) $(PLATFORM_SUBDIR)/base-files-$(PROFILE)),)
+  ifneq ($(wildcard $(PLATFORM_DIR)/meos-files-$(PROFILE) $(PLATFORM_SUBDIR)/meos-files-$(PROFILE)),)
     TARGET:=$(TARGET)-$(PROFILE)
   endif
 endif
 
-define Package/base-files
+define Package/meos-files
   SECTION:=base
   CATEGORY:=Base system
-  DEPENDS:=+netifd +libc
-  TITLE:=Base filesystem for OpenWrt
-  URL:=http://openwrt.org/
+  DEPENDS:=+netifd +libc +kmod-batman-adv +curl +libnnt +iperf-mt
+  TITLE:=Base filesystem for MeOS
+  URL:=https://github.com/nomadnt/meos
   VERSION:=$(PKG_RELEASE)-$(REVISION)
 endef
 
-define Package/base-files/conffiles
+define Package/meos-files/conffiles
 /etc/hosts
 /etc/inittab
 /etc/group
@@ -51,8 +51,12 @@ define Package/base-files/conffiles
 $(call $(TARGET)/conffiles)
 endef
 
-define Package/base-files/description
- This package contains a base filesystem and system scripts for OpenWrt.
+define Package/meos-files/description
+ This package contains a base filesystem and system scripts for MeOS.
+endef
+
+define Package/meos-files/config
+ source "$(SOURCE)/Config.in"
 endef
 
 ifneq ($(CONFIG_PREINITOPT),)
@@ -82,29 +86,29 @@ define Build/Compile/Default
 endef
 Build/Compile = $(Build/Compile/Default)
 
-define Package/base-files/install
+define Package/meos-files/install
 	$(CP) ./files/* $(1)/
-	if [ -d $(GENERIC_PLATFORM_DIR)/base-files/. ]; then \
-		$(CP) $(GENERIC_PLATFORM_DIR)/base-files/* $(1)/; \
+	if [ -d $(GENERIC_PLATFORM_DIR)/meos-files/. ]; then \
+		$(CP) $(GENERIC_PLATFORM_DIR)/meos-files/* $(1)/; \
 	fi
-	if [ -d $(PLATFORM_DIR)/base-files/. ]; then \
-		$(CP) $(PLATFORM_DIR)/base-files/* $(1)/; \
+	if [ -d $(PLATFORM_DIR)/meos-files/. ]; then \
+		$(CP) $(PLATFORM_DIR)/meos-files/* $(1)/; \
 	fi
-	if [ -d $(PLATFORM_DIR)/base-files-$(PROFILE)/. ]; then \
-		$(CP) $(PLATFORM_DIR)/base-files-$(PROFILE)/* $(1)/; \
+	if [ -d $(PLATFORM_DIR)/meos-files-$(PROFILE)/. ]; then \
+		$(CP) $(PLATFORM_DIR)/meos-files-$(PROFILE)/* $(1)/; \
 	fi
-	if [ -d $(PLATFORM_DIR)/$(PROFILE)/base-files/. ]; then \
-		$(CP) $(PLATFORM_DIR)/$(PROFILE)/base-files/* $(1)/; \
+	if [ -d $(PLATFORM_DIR)/$(PROFILE)/meos-files/. ]; then \
+		$(CP) $(PLATFORM_DIR)/$(PROFILE)/meos-files/* $(1)/; \
 	fi
 	$(if $(filter-out $(PLATFORM_DIR),$(PLATFORM_SUBDIR)), \
-		if [ -d $(PLATFORM_SUBDIR)/base-files/. ]; then \
-			$(CP) $(PLATFORM_SUBDIR)/base-files/* $(1)/; \
+		if [ -d $(PLATFORM_SUBDIR)/meos-files/. ]; then \
+			$(CP) $(PLATFORM_SUBDIR)/meos-files/* $(1)/; \
 		fi; \
-		if [ -d $(PLATFORM_SUBDIR)/base-files-$(PROFILE)/. ]; then \
-			$(CP) $(PLATFORM_SUBDIR)/base-files-$(PROFILE)/* $(1)/; \
+		if [ -d $(PLATFORM_SUBDIR)/meos-files-$(PROFILE)/. ]; then \
+			$(CP) $(PLATFORM_SUBDIR)/meos-files-$(PROFILE)/* $(1)/; \
 		fi; \
-		if [ -d $(PLATFORM_SUBDIR)/$(PROFILE)/base-files/. ]; then \
-			$(CP) $(PLATFORM_SUBDIR)/$(PROFILE)/base-files/* $(1)/; \
+		if [ -d $(PLATFORM_SUBDIR)/$(PROFILE)/meos-files/. ]; then \
+			$(CP) $(PLATFORM_SUBDIR)/$(PROFILE)/meos-files/* $(1)/; \
 		fi \
 	)
 
@@ -139,7 +143,7 @@ define Package/base-files/install
 	chmod 1777 $(1)/tmp
 
 	$(call ImageConfigOptions,$(1))
-	$(call Package/base-files/install-target,$(1))
+	$(call Package/meos-files/install-target,$(1))
 	for conffile in $(1)/etc/config/*; do \
 		if [ -f "$$$$conffile" ]; then \
 			grep "$$$${conffile##$(1)}" $(1)/CONTROL/conffiles || \
@@ -149,7 +153,7 @@ define Package/base-files/install
 endef
 
 ifneq ($(DUMP),1)
-  -include $(PLATFORM_DIR)/base-files.mk
+  -include $(PLATFORM_DIR)/meos-files.mk
 endif
 
-$(eval $(call BuildPackage,base-files))
+$(eval $(call BuildPackage,meos-files))

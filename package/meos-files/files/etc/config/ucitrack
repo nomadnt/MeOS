@@ -1,0 +1,27 @@
+config network
+	option init network
+	list affects dhcp
+
+config wireless
+	list affects network
+
+config batman-adv
+	list affects network
+
+config firewall
+	option init firewall
+
+config dhcp
+	option init dnsmasq
+
+config dropbear
+	option init dropbear
+
+config qos
+	option init qos
+
+config nodogsplash
+	option init nodogsplash
+
+config chilli
+	option init coovachilli

@@ -1,0 +1,43 @@
+config PACKAGE_meos-files
+	# global build settings
+	select STRIP_KERNEL_EXPORTS
+	select IPV6
+	
+	# Image configuration
+	#select IMAGEOPT
+	#select VERSIONOPT
+	#select VERSION_DIST
+	
+	# busybox settings
+	select BUSYBOX_CONFIG_NC
+	select BUSYBOX_CONFIG_NC_SERVER
+	
+	# kernel wireless settings
+	select ATH_USER_REGD
+	select PACKAGE_ATH_DEBUG
+	select PACKAGE_MAC80211_DEBUGFS
+	select PACKAGE_MAC80211_MESH
+	select PACKAGE_kmod-mac80211-hwsim if TARGET_x86
+	
+	# kernel routing protocol
+	select KMOD_BATMAN_ADV_DEBUG_LOG
+	select KMOD_BATMAN_ADV_BLA
+	select KMOD_BATMAN_ADV_DAT
+	select KMOD_BATMAN_ADV_NC
+	select KMOD_BATMAN_ADV_BATCTL
+	
+	# Configuring libcurl options
+	#select LIBCURL_COOKIES
+	#select LIBCURL_CRYPTO_AUTH
+	#select LIBCURL_FILE
+	#select LIBCURL_HTTP
+	#select LIBCURL_ZLIB
+	
+	# select base package
+	select PACKAGE_kmod-ipv6
+	select PACKAGE_kmod-sched
+	select PACKAGE_dnsmasq
+	select PACKAGE_dropbear
+	select PACKAGE_firewall
+	select PACKAGE_tc
+	select PACKAGE_wpad
