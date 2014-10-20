@@ -1,0 +1,50 @@
+#!/bin/sh
+# Copyright (C) 2009-2014 nomadnt.com
+
+[ $DEBUG ] || . /lib/meos.sh
+
+[ "$(uci_get system @system[0] role A)" = "A" ] && {
+	config_load batman-adv
+	config_get aggregated_ogms $MSH_DEV aggregated_ogms 1
+	config_get ap_isolation $MSH_DEV ap_isolation 0
+	config_get bonding $MSH_DEV bonding
+	config_get fragmentation $MSH_DEV fragmentation
+	config_get gw_sel_class $MSH_DEV gw_sel_class 30
+	config_get gw_bandwidth $MSH_DEV gw_bandwidth "2048KBit/512KBit"
+	config_get orig_interval $MSH_DEV orig_interval 5000
+	config_get vis_mode $MSH_DEV vis_mode "client"
+	config_get bridge_loop_avoidance $MSH_DEV bridge_loop_avoidance
+	config_get distributed_arp_table $MSH_DEV distributed_arp_table 1
+	config_get network_coding $MSH_DEV network_coding 1
+	config_get hop_penalty $MSH_DEV hop_penalty 30
+	config_clear
+
+	uci_add batman-adv mesh $MSH_DEV
+	uci_set batman-adv $MSH_DEV aggregated_ogms "$aggregated_ogms"
+	uci_set batman-adv $MSH_DEV ap_isolation "$ap_isolation"
+	uci_set batman-adv $MSH_DEV bonding "$bonding"
+	uci_set batman-adv $MSH_DEV fragmentation "$fragmentation"
+	uci_set batman-adv $MSH_DEV orig_interval "$orig_interval"
+	uci_set batman-adv $MSH_DEV vis_mode "$vis_mode"
+	uci_set batman-adv $MSH_DEV bridge_loop_avoidance "$bridge_loop_avoidance"
+	uci_set batman-adv $MSH_DEV distributed_arp_table "$distributed_arp_table"
+	uci_set batman-adv $MSH_DEV network_coding "$network_coding"
+	uci_set batman-adv $MSH_DEV hop_penalty "$hop_penalty"
+
+	case "$(sys_role)" in
+		G)
+			uci_set batman-adv $MSH_DEV gw_mode "server"
+			uci_set batman-adv $MSH_DEV gw_bandwidth "$gw_bandwidth"
+			
+			uci_remove batman-adv $MSH_DEV gw_sel_class
+		;;
+		B)
+			uci_set batman-adv $MSH_DEV gw_mode "client"
+			uci_set batman-adv $MSH_DEV gw_sel_class "$gw_sel_class"
+			
+			uci_remove batman-adv $MSH_DEV gw_bandwidth
+		;;
+	esac
+
+	uci_commit batman-adv
+}

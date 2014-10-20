@@ -1,0 +1,41 @@
+#!/bin/sh
+# Copyright (C) 2009-2014 nomadnt.com
+
+[ $DEBUG ] || . /lib/meos.sh
+
+local version=4
+local ifname="$(uci_get_state network mesh ifname)"
+local user="root"
+local mac ipaddr
+
+usage(){
+	echo "Usage: ${0##*/} [-4|-6] [-u user] [-i ifname] <MAC>" 1>&2; exit 1
+}
+
+while getopts "46u:i:" opt; do
+	case "$opt" in
+		4|6) 
+			version=$opt 
+			;;
+		i)
+			ifname=$OPTARG
+			[ -d /sys/class/net/$ifname/ ] || usage
+			;;
+		u)
+			user=$OPTARG
+			[ -n $user ] || usage
+			;;
+		*)
+			usage
+			;;
+	esac
+done
+
+shift $((OPTIND-1))
+[ -n "$1" ] && valid macaddr $1 || usage
+[ "$version" == "4" ] && ipaddr="$(mac2ip4addr 10 $1)"
+[ "$version" == "6" ] && ipaddr="$(mac2ip6addr $1)%$ifname"
+shift
+
+printf "Trying to contact %s@%s\n" "$user" "$ipaddr"
+ssh "$user@$ipaddr" "$@"

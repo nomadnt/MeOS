@@ -1,0 +1,76 @@
+#!/bin/sh
+# Copyright (C) 2009-2014 nomadnt.com
+                                                               
+[ -z "$1" ] && echo "Error: should be run by udhcpc" && exit 1
+
+[ $DEBUG ] || . /lib/meos.sh
+
+local _MEOS_ROLE="B"
+local _NAME_SERVERS="208.67.222.222 208.67.220.220 8.8.8.8 8.8.4.4"
+
+deconfig(){
+	local interface="$1"
+	
+	ifconfig "$interface" 0.0.0.0
+	
+	# remove interface from bridges
+	brctl show | grep -qs "$interface" && {
+		local bridge="$(brctl show | awk '$4 ~ /^eth0$/{print $1}')"
+
+		ifconfig $bridge 0.0.0.0 down > /dev/null 2>&1
+		brctl delif "$bridge" "$interface" > /dev/null 2>&1
+		brctl delbr "$bridge" > /dev/null 2>&1
+	}
+	
+	# remove all vlan with ifname
+	echo $interface | grep -qs "^eth[0-9].[0-9]$" && {
+		ifconfig $interface > /dev/null 2>&1 && vconfig rem $interface
+	}
+				
+	[ -e /tmp/resolv.conf.auto ] && rm -f /tmp/resolv.conf.auto
+}
+
+setup_interface(){
+	ifconfig $interface $ip netmask ${subnet:-255.255.255.0} broadcast ${broadcast:-+}
+
+	[ -n "$router" ] && [ "$router" != "0.0.0.0" ] && [ "$router" != "255.255.255.255" ] && {
+		echo "udhcpc: setting default routers: $router"
+
+		local valid_gw=""
+		for i in $router ; do
+			route add default gw $i dev $interface
+			valid_gw="${valid_gw:+$valid_gw|}$i"
+		done
+
+		eval $(route -n | awk '
+			/^0.0.0.0\W{9}('$valid_gw')\W/ {next}
+			/^0.0.0.0/ {print "route del -net "$1" gw "$2";"}
+		')
+	}
+	
+	for ip in $_NAME_SERVERS; do
+		ping -q -c1 $ip > /dev/null 2>&1 && {
+			_MEOS_ROLE="G"
+			break
+		}
+	done
+	
+	uci_toggle_state system @system[0] role "$_MEOS_ROLE"
+}
+
+case "$1" in
+	deconfig)
+		deconfig "$interface"
+	;;
+	renew)
+		setup_interface update
+	;;
+	bound)
+		setup_interface ifup
+	;;
+	leasefail)
+		uci_toggle_state system @system[0] role "$_MEOS_ROLE"
+	;;
+esac
+
+exit 0

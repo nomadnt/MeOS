@@ -1,0 +1,125 @@
+#!/bin/sh
+# Copyright (C) 2009-2014 nomadnt.com
+
+[ $DEBUG ] || . /lib/meos.sh
+
+config_dev(){
+	local cfg="${1//phy/radio}"
+	local channel noscan frag rts beacon_int disabled
+
+	#config_get beacon_int $cfg beacon_int 100
+	#config_get noscan $cfg noscan 1
+	#config_get frag $cfg frag 2346
+	#config_get rts $cfg rts 2347
+	config_get channel $cfg channel 3
+	config_get disabled $cfg disabled 0
+
+	uci_add wireless wifi-device $cfg
+	uci_set wireless $cfg beacon_int $beacon_int
+	uci_set wireless $cfg noscan $noscan
+	uci_set wireless $cfg frag $frag
+	uci_set wireless $cfg rts $rts
+	uci_set wireless $cfg channel $channel
+	uci_set wireless $cfg disabled $disabled
+}
+
+config_msh(){
+	local device="${1//phy/radio}"
+	local cfg="$(echo $device | sed 's/radio/_msh/')"
+	local disabled network ifname ssid bssid encryption key rts frag
+	
+	config_get disabled $cfg disabled 0
+	config_get network $cfg network "$(echo $cfg | sed 's/_//g')"
+	config_get ifname $cfg ifname "$network"
+	config_get ssid $cfg ssid "meos"
+	config_get bssid $cfg bssid "02:4D:65:4F:53:00"
+	config_get encryption $cfg encryption "none"
+	config_get key $cfg key
+	config_get mcast_rate $cfg mcast_rate 6000
+	
+	[ "$encryption" == "none" ] && unset key
+	
+	uci_add wireless wifi-iface $cfg
+	uci_set wireless $cfg disabled $disabled
+	uci_set wireless $cfg device "$device"
+	uci_set wireless $cfg ifname "$network"
+	uci_set wireless $cfg network "$network"
+	uci_set wireless $cfg mode "adhoc"
+	uci_set wireless $cfg ssid "$ssid"
+	uci_set wireless $cfg bssid "$bssid"
+	uci_set wireless $cfg encryption "$encryption"
+	uci_set wireless $cfg key "$key"
+	uci_set wireless $cfg mcast_rate "$mcast_rate"
+}
+
+config_map(){
+	local device="${1//phy/radio}"
+	local cfg="${device//radio/_map}"
+	local disabled network ifname ssid encryption key isolate maxassoc
+	
+	config_get disabled $cfg disabled 1
+	config_get network $cfg network "mesh"
+	config_get ifname $cfg ifname "${cfg//_/}"
+	config_get ssid $cfg ssid "MeOS AP - Secure"
+	config_get encryption $cfg encryption "none"
+	config_get key $cfg key
+	config_get isolate $cfg isolate 0
+	config_get maxassoc $cfg maxassoc 32
+	
+	[ "$encryption" == "none" ] && unset key
+	
+	uci_add wireless wifi-iface $cfg
+	uci_set wireless $cfg disabled $disabled
+	uci_set wireless $cfg device "$device"
+	uci_set wireless $cfg ifname "$ifname"
+	uci_set wireless $cfg network "$network"
+	uci_set wireless $cfg mode "ap"
+	uci_set wireless $cfg ssid "$ssid"
+	uci_set wireless $cfg encryption "$encryption"
+	uci_set wireless $cfg key "$key"
+	uci_set wireless $cfg isolate "$isolate"
+	uci_set wireless $cfg maxassoc "$maxassoc"
+}
+
+config_lap(){
+	local device="${1//phy/radio}"
+	local cfg="${device//radio/_lap}"
+	local disabled network ifname ssid encryption key isolate maxassoc
+	
+	config_get disabled $cfg disabled 1
+	config_get network $cfg network "lan"
+	config_get ifname $cfg ifname "${cfg//_/}"
+	config_get ssid $cfg ssid "MeOS AP - Open"
+	config_get encryption $cfg encryption "none"
+	config_get key $cfg key
+	config_get isolate $cfg isolate 0
+	config_get maxassoc $cfg maxassoc 32
+	
+	[ "$encryption" == "none" ] && unset key
+	
+	uci_add wireless wifi-iface $cfg
+	uci_set wireless $cfg disabled $disabled
+	uci_set wireless $cfg device "$device"
+	uci_set wireless $cfg ifname "$ifname"
+	uci_set wireless $cfg network "$network"
+	uci_set wireless $cfg mode "ap"
+	uci_set wireless $cfg ssid "$ssid"
+	uci_set wireless $cfg encryption "$encryption"
+	uci_set wireless $cfg key "$key"
+	uci_set wireless $cfg isolate "$isolate"
+	uci_set wireless $cfg maxassoc "$maxassoc"
+}
+
+[ "$(uci_get system @system[0] role A)" == "A" ] && {
+	config_load wireless
+
+	for phy in $(iw_get_devices); do
+		meos_debug ">>> Detecting $phy settings..."
+		config_dev "$phy"
+		config_msh "$phy"
+		config_map "$phy"
+		config_lap "$phy"
+	done
+	
+	uci_commit wireless
+}

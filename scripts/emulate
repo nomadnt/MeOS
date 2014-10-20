@@ -1,0 +1,17 @@
+#!/bin/bash
+
+IMAGE="$1"
+MACADDR="02:00:00:00:00:FF"
+
+OPTIONS="-no-acpi -nographic -m ${2:-32}"
+NET="-net nic,model=virtio,macaddr=$MACADDR -net tap,script=/etc/ovs-ifup,downscript=/etc/ovs-ifdown"
+
+[ -e $IMAGE ] || {
+	echo "Image does not exists"
+	exit 1
+}
+
+gzip -t $IMAGE > /dev/null 2>&1 && gunzip $IMAGE
+#sudo kvm -no-acpi -nographic -m $mem -net nic,model=virtio -net tap -drive file=${img//.gz/},if=virtio,index=0,media=disk
+
+sudo kvm $OPTIONS $NET -drive file=${IMAGE//.gz/},if=virtio,index=0,media=disk

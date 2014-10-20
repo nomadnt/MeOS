@@ -1,0 +1,100 @@
+#!/bin/sh
+# Copyright (C) 2009-2014 nomadnt.com
+
+[ $DEBUG ] || . /lib/meos.sh
+
+config_cb(){
+	local _type="$1"
+	local _cfg="$2"
+	
+	case "$_type" in
+		zone|forwarding)
+			echo $_cfg | grep -qsE "^_(WAN|LAN|MSH)_(ZONE|FORWARD)" || uci_remove firewall $_cfg
+		;;
+	esac
+}
+
+config_zones(){
+	uci_add firewall zone _WAN_ZONE
+	uci_set firewall _WAN_ZONE name "wan"
+	uci_set firewall _WAN_ZONE network "wan"
+	uci_set firewall _WAN_ZONE input "REJECT"
+	uci_set firewall _WAN_ZONE output "ACCEPT"
+	uci_set firewall _WAN_ZONE forward "REJECT"
+	uci_set firewall _WAN_ZONE masq 1
+	uci_set firewall _WAN_ZONE mtu_fix 1
+	
+	uci_add firewall zone _MSH_ZONE
+	uci_set firewall _MSH_ZONE name "mesh"
+	uci_set firewall _MSH_ZONE network "mesh"
+	uci_set firewall _MSH_ZONE input "ACCEPT"
+	uci_set firewall _MSH_ZONE output "ACCEPT"
+	uci_set firewall _MSH_ZONE forward "REJECT"
+	case "$(sys_role)" in
+		G)
+			uci_remove firewall _MSH_ZONE masq
+			uci_remove firewall _MSH_ZONE mtu_fix
+			;;
+		B)
+			uci_set firewall _MSH_ZONE masq 1
+			uci_set firewall _MSH_ZONE mtu_fix 1
+			;;
+	esac
+	
+	uci_add firewall zone _LAN_ZONE
+	uci_set firewall _LAN_ZONE name "lan"
+	uci_set firewall _LAN_ZONE network "lan"
+	uci_set firewall _LAN_ZONE input "ACCEPT"
+	uci_set firewall _LAN_ZONE output "ACCEPT"
+	uci_set firewall _LAN_ZONE forward "REJECT"
+}
+
+config_forwardings(){
+	case "$(sys_role)" in
+		G)
+			uci_add firewall forwarding _MSH_FORWARD
+			uci_set firewall _MSH_FORWARD src "mesh"
+			uci_set firewall _MSH_FORWARD dest "wan"
+			uci_add firewall forwarding _LAN_FORWARD
+			uci_set firewall _LAN_FORWARD src "lan"
+			uci_set firewall _LAN_FORWARD dest "wan"
+		;;
+		B)
+			uci_add firewall forwarding _LAN_FORWARD
+			uci_set firewall _LAN_FORWARD src "lan"
+			uci_set firewall _LAN_FORWARD dest "mesh"
+			uci_remove firewall _MSH_FORWARD
+		;;
+	esac
+}
+
+config_includes(){
+	uci_add firewall include meos
+	uci_set firewall meos enabled 1
+	uci_set firewall meos path '/etc/firewall.meos'
+}
+
+config_reorder(){
+	__reorder(){
+		uci_reorder firewall $1 $((INDEX++))
+	}
+
+	local INDEX=1
+	config_load firewall
+	config_foreach __reorder zone
+	config_foreach __reorder forwarding
+	config_foreach __reorder rule
+	config_foreach __reorder include
+}
+
+[ "$(uci_get system @system[0] role A)" = "A" ] && {
+	config_load firewall
+	config_clear
+	
+	config_zones
+	config_forwardings
+	config_includes
+	config_reorder
+
+	uci_commit firewall
+}
