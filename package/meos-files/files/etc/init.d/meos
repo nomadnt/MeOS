@@ -11,13 +11,15 @@ start(){
 		logger -s -t "MeOS" "Detecting node role on $INTERFACE_WAN..."
 		udhcpc -i $(meos_default_wan) -t 5 -qn -s /usr/share/udhcpc/meos.script
 	}
+	
 	# Reloading configuration
 	logger -s -t "MeOS" "Checking configuration"
 	[ -d /lib/meos ] && for script in /lib/meos/*; do $script; done
 
-	/sbin/reload_config
+	service_start /sbin/meos
 }
 
 stop(){
 	logger -s -t "MeOS" "Shutdown MeOS services"
+	service_stop /sbin/meos
 }

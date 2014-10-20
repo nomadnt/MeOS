@@ -1,0 +1,37 @@
+#!/bin/sh
+# Copyright (C) 2009-2014 nomadnt.org
+
+. /lib/meos.sh
+
+option_cb(){
+	local opt="$1"
+	local val="$2"
+	
+	echo $opt | grep -qsiE '^__[a-z0-9]*' && {
+		uci_set "$PACKAGE" "$CONFIG_SECTION" "${opt//__/}" "$val"
+		uci_remove "$PACKAGE" "$CONFIG_SECTION" "$opt"
+	}
+}
+
+_TTS=$(uci_get system @system[0] tts)
+_NOW="$(date +'%y%m%d%H%M')"
+
+[ -n "$_TTS" ] && {	
+	local packages="wireless"
+	
+	[ $_NOW -ge $_TTS ] && {
+		logger -s -t "${0##*/}" "Switching configuration"
+		for package in $packages; do
+			config_load $package
+			config_clear
+		done
+
+		local configs=$(uci_affected_configs)
+
+		uci_remove system @system[0] tts
+		uci_commit
+		uci_apply $configs
+	}
+}
+
+exit 0

@@ -1,0 +1,8 @@
+{
+	"wireless": [ 
+		"ath: phy[0-9]+: Timeout while waiting for nf to load",
+		"ath: phy[0-9]+: Failed to stop TX DMA",
+		"ath: phy[0-9]+: DMA failed to stop in",
+		"ath: phy[0-9]+: Could not stop RX, we could be confusing the DMA engine when we start RX up"
+	]
+}

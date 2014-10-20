@@ -28,7 +28,8 @@ endif
 define Package/meos-files
   SECTION:=base
   CATEGORY:=Base system
-  DEPENDS:=+netifd +libc +kmod-batman-adv +curl +libnnt +iperf-mt
+  DEPENDS:=+netifd +libc +kmod-batman-adv +curl +iwget +libnnt +iperf-mt +mini-snmpd +tinc \
+  	+nodogsplash +coova-chilli
   TITLE:=Base filesystem for MeOS
   URL:=https://github.com/nomadnt/meos
   VERSION:=$(PKG_RELEASE)-$(REVISION)

@@ -1,0 +1,189 @@
+#!/bin/sh
+# Copyright (C) 2009-2014 nomadnt.com
+
+. /lib/meos.sh
+
+RUN_FILE="$RUN_DIR/watchdog"
+SELF_DIR="$VAR_DIR/watchdog"
+
+ERRORS_FILE="/usr/share/errors.db"
+LOADAVG_THRESHOLD=3
+MEMORY_THRESHOLD=10
+
+teardown(){
+	lock -u $RUN_FILE
+	rm -f $RUN_FILE
+	exit 0
+}
+
+check_loadavg(){
+	[ $(sys_loadavg | awk '{printf("%.0f\n", $1)}') -gt $LOADAVG_THRESHOLD ] && {
+		logger -s -t "watchdog" "System load average > 0 ! rebooting..."
+		/sbin/reboot -f
+	}
+}
+
+check_memory(){
+	meos_debug "check system memory"
+	[ $(sys_memfree) -lt $MEMORY_THRESHOLD ] && {
+		logger -s -t "watchdog" "System memory is full! try to free it..."
+		sync
+		[ -e /tmp/opkg-lists/ ] && rm -r /tmp/opkg-lists/
+		echo 1 > /proc/sys/vm/drop_caches
+		echo 2 > /proc/sys/vm/drop_caches
+		echo 3 > /proc/sys/vm/drop_caches
+	}
+}
+
+check_wifi_status(){
+	local reset=0
+	local kmsg="MeOS: --- WIFI RESET ---"
+
+	json_init
+	json_load "$(cat $ERRORS_FILE)" > /dev/null 2>&1 && {
+		json_select wireless > /dev/null 2>&1 && {
+			local errors
+
+			eval "errors=\"\$KEYS_$JSON_CUR\""
+			for index in $errors; do
+				json_get_var error $index          
+				dmesg | sed '1!G;h;$!d' | sed '/^\[.*\] '"$kmsg"'$/,$d' | grep -qEsi "$error" && {
+					reset=1
+					break
+				}
+			done
+		}
+	}
+	json_cleanup
+
+	[ $reset -eq 1 ] && {
+		logger -s -t "watchdog" "Found WiFi errors! Resetting..."
+		wifi
+		echo "$kmsg" > /dev/kmsg
+		teardown
+	}
+}
+
+check_link_status(){
+	
+	__check_link(){
+		local addresses="$1"
+		local interface="${2:+-I $2}"
+	
+		for addr in $addresses; do
+			meos_debug "Sending ping packet to $addr $interface"
+			ping -q -c1 $addr $interface > /dev/null && return 0
+		done
+		return 1
+	}
+	
+	# Uplink status can assume different values:
+	# 2: Node can't reach their gateway
+	# 1: Node reach their gateway but not internet
+	# 0: Node is connected
+
+	local _UPLINK_STATUS=2
+	local _ROLE="$(sys_role)"
+	local _GATEWAY="$(net_get_default_gateway)"
+	local _ADDRESSES="$(uci_get system @watchdog[0] address)"
+	
+	[ -e $SELF_DIR/failsafe ] && {
+		__check_link "$_ADDRESSES" eth0 && {
+			__switch_to_gateway_mode
+			_UPLINK_STATUS=0
+		}
+	}
+	
+	[ $_UPLINK_STATUS -eq 2 ] && __check_link "$_ADDRESSES" && _UPLINK_STATUS=0
+	[ $_UPLINK_STATUS -eq 2 ] && __check_link "$_GATEWAY" && _UPLINK_STATUS=1
+	
+	meos_debug "UPLINK STATUS : $_UPLINK_STATUS"
+	
+	[ $_UPLINK_STATUS -eq 0 ] || {
+		if [ "$_ROLE" = "G" ]; then
+			[ -e $SELF_DIR/failsafe ] || __switch_to_bridge_mode
+		else
+			__search_channel
+		fi
+	}
+
+	return $_UPLINK_STATUS
+}
+
+__switch_to_bridge_mode(){	
+	uci_set batman-adv $MSH_DEV gw_mode off
+	uci_set dhcp mesh ignore 1
+
+	uci_set firewall _LAN_FORWARD dest mesh
+	
+	for service in network dnsmasq firewall; do
+		sys_service $service restart
+	done
+	
+	echo $_ROLE > $SELF_DIR/failsafe
+}
+
+__switch_to_gateway_mode(){
+	uci_set batman-adv $MSH_DEV gw_mode server
+	uci_set dhcp mesh ignore 0
+		
+	uci_set firewall _LAN_FORWARD dest wan
+	
+	for service in network dnsmasq firewall; do
+		sys_service $service restart
+	done
+	
+	rm -f $SELF_DIR/failsafe
+}
+
+__search_channel(){
+	
+	__airscan(){
+		local radio="$1"
+		local bssid="$2"
+	
+		[ -n "$radio" -a -n "$bssid" ] || return 1
+	
+		config_get channel $radio channel 0
+	
+		meos_debug "Current channel : $channel"
+		[ -s $SELF_DIR/channels ] || {
+			meos_debug "Channel list is empty! Rebuilding..."
+			meos_debug "iwget -b $bssid ${radio//radio/phy} airscan"
+			iwget -b $bssid ${radio//radio/phy} airscan | sed '1d' | \
+				awk -v ch=$channel -F"   *" '$5 !~ "^"ch"$"{print $5}' | \
+				sort -u > $SELF_DIR/channels
+		}
+		
+		while read channel; do
+			meos_debug "Try to switch to channel $channel"
+			sed -i '/^'$channel'$/d' $SELF_DIR/channels
+			uci_set wireless $radio channel $channel
+			wifi down && sleep 1s && wifi up
+		done < $SELF_DIR/channels
+		return 0
+	}
+		
+	config_load wireless
+	config_foreach __airscan wifi-device "02:4D:65:4F:53:00"
+	config_clear
+}
+
+[ "$(uci_get system @watchdog[0] enabled 0)" == "0" ] && exit 0
+
+lock $RUN_FILE
+
+trap teardown INT
+
+[ -d $SELF_DIR ] || mkdir -p $SELF_DIR
+
+# checking system load average
+check_loadavg
+# checking system free memory
+check_memory
+# Check network connectivity
+check_wifi_status
+# Check network connectivity
+#check_link_status
+
+teardown

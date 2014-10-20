@@ -1,0 +1,241 @@
+#!/bin/sh
+# Copyright (C) 2009-2014 nomadnt.com
+
+. /lib/meos.sh
+
+teardown(){
+	lock -u $RUN_FILE
+
+	rm -f $HDR_FILE
+	rm -f $CFG_FILE
+	rm -f $RUN_FILE
+	exit 0
+}
+
+generate_uci_configuration(){
+	local src="$1"
+	local dst="${2:-${src%.*}.uci}"
+	
+	[ -e $src ] || {
+		sys_log "Error loading json config" INFO
+		return 1
+	}
+
+	json_init
+	json_load "$(cat $src)" > /dev/null 2>&1 || {
+		sys_log "Error parsing json config" INFO
+		return 1
+	}
+
+	# Parsing config
+	json_select config > /dev/null 2>&1 && {
+		[ -e $dst ] && rm -rf $dst
+		sys_log "Parsing json configuration" INFO
+		
+		local configs sections options
+		eval "configs=\"\$KEYS_$JSON_CUR\""
+		for config in $configs; do
+			local ___uci="$config"
+
+			json_select $config > /dev/null 2>&1
+			eval "sections=\"\$KEYS_$JSON_CUR\""
+			for section in $sections; do
+				local ___type
+				json_get_type ___type $section
+				case $___type in
+					array)
+						local ___type
+						local ___index=1
+						local ___uci="$config.@$section[$((___index - 1))]"
+
+						json_select $section > /dev/null 2>&1
+						while json_get_type ___type $___index && [ "$___type" = object ]; do
+							json_select $___index						
+							eval "options=\"\$KEYS_$JSON_CUR\""
+							for option in $options; do
+								local ___type
+								json_get_type ___type $option
+								if [ "$___type" = array ]; then
+									local ___type
+									local ___idx=1
+									json_select $option > /dev/null 2>&1
+									while json_get_var ___value "$((___idx++))"; do
+										echo "add_list $___uci.$option='$___value'" >> $dst
+									done
+									json_select ..
+								else
+									json_get_var ___value $option
+									echo "set $___uci.$option='$___value'" >> $dst
+								fi
+							done
+							___index=$((___index + 1))
+							json_select ..
+						done
+						json_select ..
+					;;
+					object)
+						json_select $section > /dev/null 2>&1
+						local ___uci="$config.$section"
+						eval "options=\"\$KEYS_$JSON_CUR\""
+						for option in $options; do
+							json_get_var ___value $option
+							echo "set $___uci.$option='$___value'" >> $dst
+						done
+						json_select ..
+					;;
+				esac
+			done
+			json_select ..
+		done
+		json_select ..
+		sys_log "UCI configuration generated" NOTICE
+	}
+	
+	return 0
+}
+
+system_snapshot(){
+	local namespace
+	
+	sys_log "Generating system snapshot" INFO
+	
+	json_init
+	json_add_string version "$(sys_version)"
+	json_add_string role "$(sys_role)"
+	
+	# system object
+	json_add_object "system"
+		json_add_int uptime "$(sys_uptime)"
+		json_add_string loadavg "$(sys_loadavg)"
+		json_add_int memfree "$(sys_memfree)"
+	json_close_object
+	
+	# network object
+	json_add_object "network"
+		for network in wan mesh lan; do
+			local up=$(uci_get_state network $network up 0)
+			
+			json_add_object "$network"
+				json_add_boolean up $up
+				[ $up -eq 1 ] && {
+					local ip4addr="$(net_get_ipaddr $network)"
+					json_add_string ip4addr $ip4addr
+					json_add_object route
+						local route="$(net_get_route $network)"
+						[ -n "$route" ] && {
+							json_add_string "target" "${route%% *}"
+							json_add_string "nexthop" "${route##* }"
+						}
+					json_close_object
+					json_add_object "statistics"
+						local statistics="$(net_get_bytes $network)"
+						json_add_int rx_bytes "${statistics%%/*}"
+						json_add_int tx_bytes "${statistics##*/}"
+					json_close_object
+					[ "$(uci_get dhcp $network)" == "dhcp" ] && {
+						[ $(uci_get dhcp $network ignore 1) -eq 0 ] && {
+							json_add_int clients "$(grep "${ip4addr%.*}" /tmp/dhcp.leases | wc -l)"
+						}
+					}
+				}
+			json_close_object
+		done
+	json_close_object
+	
+	json_add_object "mesh"
+	[ "$(sys_role)" == "B" ] && {
+		local mac lq nh
+		local gateway="$(get_mesh_gateway)"
+		local index=1
+		
+		[ -n "$gateway" ] && {
+			mac="$(echo $gateway | awk '{print $1}')"
+			lq="$(echo $gateway | awk '{print $2}')"
+			nh="$(echo $gateway | awk '{print $3}')"
+		
+			json_add_string gateway "$mac"
+			json_add_int quality "$lq"
+			json_add_string nexthop "$nh"
+		
+			json_add_array "route"
+			valid macaddr $mac && {
+				for node in $(batctl tr $mac | sed "1d" | awk '{print $2}'); do 
+					json_add_string $((index++)) $node
+				done
+			}
+			json_close_array
+		}
+	}
+	json_close_object
+	
+	json_dump
+}
+
+local RUN_FILE="$RUN_DIR/${0##*/}"
+local HDR_FILE="$VAR_DIR/cfg.hdr"
+local CFG_FILE="$VAR_DIR/cfg.jsn"
+local SUM_FILE="$VAR_DIR/cfg.sum"
+local UCI_FILE="$VAR_DIR/cfg.uci"
+
+local _MEOS_MAC="$(net_get_macaddr $(iw_get_devices | awk '{print $1}'))"
+
+# Check if dashbaord is enabled first
+[ "$(uci_get system @dashboard[0] enabled 0)" == "0" ] && exit 0
+
+lock $RUN_FILE
+trap teardown INT
+
+server="$(uci_get system @dashboard[0] server mbms.nomadnt.com)"
+encryption=$(uci_get system @dashboard[0] encryption 0)
+
+append HEADERS "-H content-type:application/json;charset=UTF-8"
+append HEADERS "-H content-encoding:gzip"
+
+OPTIONS="-A MeOS -s -w %{http_code} -k --compressed -D $HDR_FILE"
+CURL="curl $OPTIONS $HEADERS -X PUT --data-binary @-"
+URL="http://$server/api/meos/v1/node/$_MEOS_MAC"
+
+[ $encryption -eq 1 ] && URL=${URL//http/https}
+#[ -e $SUM_FILE ] || URL="$URL/TRUE"
+
+sys_log "Sending update request to $URL" INFO
+STATUS_CODE=$(system_snapshot | gzip -c | $CURL --url $URL -o $CFG_FILE)
+
+[ $STATUS_CODE -eq 200 ] && {
+	_MD5SUM="$(awk '$1 ~ /X-Content-Md5:/{print $2}' $HDR_FILE)"
+	
+	[ -e $SUM_FILE ] && cat $SUM_FILE | grep -qsE "$_MD5SUM" && {
+		sys_log "No changes in config. Sleeping..." INFO
+		teardown
+	}
+	
+	sys_log "Checking file integrity" INFO
+	md5sum $CFG_FILE | grep -qsE "$_MD5SUM" || {
+		sys_log "Configuration file is corrupted." ERROR
+		teardown
+	}
+	
+	generate_uci_configuration "$CFG_FILE" "$UCI_FILE" && {
+		[ -e "$UCI_FILE" ] && {
+			local services
+	
+			sys_log "Importing UCI configuration" NOTICE
+			uci_batch "$UCI_FILE"
+			configs="$(uci_affected_configs)"
+			uci commit
+			
+			sys_log "Reloading UCI configuration" NOTICE
+			for script in /lib/meos/*; do . $script; done
+	
+			uci_apply $configs
+		} || {
+			sys_log "Nothing to do. Sleeping..." INFO
+		}
+	}
+	
+	echo $_MD5SUM > $SUM_FILE
+} || {
+	sys_log "EXIT CODE: $STATUS_CODE"
+}
+
+teardown

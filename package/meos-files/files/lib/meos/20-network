@@ -103,6 +103,7 @@ config_reorder(){
 	config_load network
 	config_networks
 	config_reorder
+	config_clear
 
 	uci_commit network
 }

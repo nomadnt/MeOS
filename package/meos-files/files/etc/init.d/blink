@@ -1,0 +1,18 @@
+#!/bin/sh /etc/rc.common
+# Copyright (C) 2009-2014 nomadnt.com
+
+START=96
+STOP=05
+
+SERVICE_USE_PID=1
+
+. /lib/meos.sh
+
+start(){
+	local phy="$(iw_get_devices | awk '{print $1}')"
+	service_start /usr/sbin/blink "$(sys_device_vendor)" "$(sys_device_model)" "${phy//phy/msh}"
+}
+
+stop(){
+	service_stop /usr/sbin/blink
+}

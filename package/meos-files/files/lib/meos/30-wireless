@@ -121,5 +121,6 @@ config_lap(){
 		config_lap "$phy"
 	done
 	
+	config_clear
 	uci_commit wireless
 }

@@ -96,5 +96,6 @@ config_reorder(){
 	config_includes
 	config_reorder
 
+	config_clear
 	uci_commit firewall
 }
