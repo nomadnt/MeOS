@@ -94,7 +94,10 @@ int get_link_quality(const struct iwinfo_ops *iw, const char *ifname){
 int load_leds(char *vendor, char *model, json_object **obj){
 	char *json;
 
-	file_get_contents(HARDWARE_DB, &json);
+	if(!file_get_contents(HARDWARE_DB, &json)){
+		syslog(LOG_ERR, "Unable to open %s\n", HARDWARE_DB);
+		return -1;
+	}
 	*obj = json_tokener_parse(json);
 	if(!json_object_is_type(*obj, json_type_object)){
 		syslog(LOG_ERR, "Unable to parse %s\n", HARDWARE_DB);
@@ -185,7 +188,11 @@ int do_daemon(char *vendor, char *model, char *device, int interval){
 	syslog(LOG_INFO, "Starting %s", BINARY);
 
 	// Loading json configuration
-	load_leds(vendor, model, &obj);
+	if(load_leds(vendor, model, &obj) < 0){
+		syslog(LOG_ERR, "Unable to load leds definition");
+		return -1;
+	}
+
 	// Check if object has some led definition
 	if((leds = json_object_array_length(obj)) > 0){
 		int i;

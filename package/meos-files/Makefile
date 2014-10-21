@@ -80,10 +80,14 @@ endif
 
 define Build/Prepare
 	mkdir -p $(PKG_BUILD_DIR)
+	$(CP) ./src $(PKG_BUILD_DIR)/
 endef
 
 define Build/Compile/Default
-
+	$(MAKE) -C $(PKG_BUILD_DIR)/src \
+		CC="$(TARGET_CC)" \
+		CFLAGS="$(TARGET_CFLAGS) -I$(STAGING_DIR)/usr/include" \
+		LDFLAGS="$(TARGET_LDFLAGS)"
 endef
 Build/Compile = $(Build/Compile/Default)
 
@@ -151,6 +155,9 @@ define Package/meos-files/install
 				echo "$$$${conffile##$(1)}" >> $(1)/CONTROL/conffiles; \
 		fi \
 	done
+
+	$(INSTALL_BIN) $(PKG_BUILD_DIR)/src/meos $(1)/sbin/meos
+	$(INSTALL_BIN) $(PKG_BUILD_DIR)/src/blink $(1)/usr/sbin/blink
 endef
 
 ifneq ($(DUMP),1)
