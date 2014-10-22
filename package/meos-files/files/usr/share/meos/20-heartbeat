@@ -202,7 +202,7 @@ sys_log "Sending update request to $URL" INFO
 STATUS_CODE=$(system_snapshot | gzip -c | $CURL --url $URL -o $CFG_FILE)
 
 [ $STATUS_CODE -eq 200 ] && {
-	_MD5SUM="$(awk '$1 ~ /X-Content-Md5:/{print $2}' $HDR_FILE)"
+	_MD5SUM="$(awk 'tolower($1) ~ /x-content-md5:/{print $2}' $HDR_FILE)"
 	
 	[ -e $SUM_FILE ] && cat $SUM_FILE | grep -qsE "$_MD5SUM" && {
 		sys_log "No changes in config. Sleeping..." INFO

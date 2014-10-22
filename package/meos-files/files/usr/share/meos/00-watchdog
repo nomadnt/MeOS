@@ -58,7 +58,9 @@ check_wifi_status(){
 
 	[ $reset -eq 1 ] && {
 		logger -s -t "watchdog" "Found WiFi errors! Resetting..."
-		wifi
+		wifi down
+		sleep 3s
+		wifi up
 		echo "$kmsg" > /dev/kmsg
 		teardown
 	}
@@ -184,6 +186,6 @@ check_memory
 # Check network connectivity
 check_wifi_status
 # Check network connectivity
-#check_link_status
+check_link_status
 
 teardown
