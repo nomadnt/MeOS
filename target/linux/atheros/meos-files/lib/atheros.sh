@@ -10,8 +10,16 @@ atheros_board_detect(){
 	local machine
     local name
 
-    machine=$(awk 'BEGIN{FS="[ \t]+:[ \t]"} /machine/ {print $2}' /proc/cpuinfo)
+    which iwget > /dev/null && {
+        machine="$(iwget phy0 info | sed -n 's/HW_INFO=".*\[\(.*\)\]"/\1/p')"
+        case "$machine" in
+            *"PicoStation2") name="pico2" ;;
+        esac
+    } || {
+        machine=$(awk 'BEGIN{FS="[ \t]+:[ \t]"} /system/ {print $2}' /proc/cpuinfo)        
+    }
 
+    #[ -z "$machine" ] && machine=$(awk 'BEGIN{FS="[ \t]+:[ \t]"} /system/ {print $2}' /proc/cpuinfo)
 	[ -z "$name" ] && name="unknown"
 
     [ -z "$ATHEROS_BOARD_NAME" ] && ATHEROS_BOARD_NAME="$name"
@@ -23,7 +31,7 @@ atheros_board_detect(){
     echo "$ATHEROS_MODEL" > /tmp/sysinfo/model
 }
 
-atheros_board_name() {
+atheros_board_name(){
     local name
 
     [ -f /tmp/sysinfo/board_name ] && name=$(cat /tmp/sysinfo/board_name)

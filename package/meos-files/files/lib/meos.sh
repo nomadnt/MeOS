@@ -41,6 +41,7 @@ meos_default_wan(){
 	[ -e /var/sysinfo/board_name ] && model="$(cat /var/sysinfo/board_name)"
 	case "$model" in
 		# ubnt
+		"pico2") eth="eth0" ;;
 		"bullet-m") eth="eth0" ;;
 		"nanostation-m") eth="eth0" ;;
 		# alfa

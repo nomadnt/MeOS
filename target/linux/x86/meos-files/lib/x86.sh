@@ -10,7 +10,6 @@ x86_board_detect(){
 	local machine
     local name
 
-    #machine=$(awk 'BEGIN{FS="[ \t]+:[ \t]"} /vendor_id/ {print $2}' /proc/cpuinfo)
 	machine=$(awk 'BEGIN{FS="[ \t]+:[ \t]"} /model name/ {print $2}' /proc/cpuinfo)
 
 	case "$machine" in

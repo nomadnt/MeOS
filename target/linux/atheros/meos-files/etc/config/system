@@ -1,12 +1,23 @@
 config system
-	option hostname OpenWrt
-	option timezone UTC
+	option hostname meos
+	option timezone UTC-2
+	option role A
 
 config timeserver ntp
 	list server	0.openwrt.pool.ntp.org
 	list server	1.openwrt.pool.ntp.org
 	list server	2.openwrt.pool.ntp.org
 	list server	3.openwrt.pool.ntp.org
+
+config dashboard
+	option enabled 0
+	option server mb.nomadnt.com
+	option encryption 1
+
+config watchdog
+	option enabled 0
+	list address 208.67.222.222
+	list address 208.67.220.220
 
 config button
 	option button	reset
