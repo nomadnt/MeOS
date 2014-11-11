@@ -22,8 +22,6 @@ Open your terminal and type:
 ~# ./scripts/feeds install -p nomadnt libnnt
 ~# ./scripts/feeds install -p nomadnt iwget
 ~# ./scripts/feeds install -p nomadnt curl
-~# ./scripts/feeds install -p nomadnt coova-chilli
-~# ./scripts/feeds install -p nomadnt nodogsplash
 ```
 
 ```
