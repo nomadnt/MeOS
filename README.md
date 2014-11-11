@@ -19,8 +19,6 @@ Open your terminal and type:
 ~# ./scripts/feeds install iperf
 ~# ./scripts/feeds install tinc
 ~# ./scripts/feeds install mini-smnpd
-~# ./scripts/feeds install -p nomadnt libnnt
-~# ./scripts/feeds install -p nomadnt iwget
 ~# ./scripts/feeds install -p nomadnt curl
 ```
 
