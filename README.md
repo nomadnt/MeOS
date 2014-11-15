@@ -22,6 +22,11 @@ Open your terminal and type:
 ~# ./scripts/feeds install -p nomadnt curl
 ```
 
+Get your MeOS copy syncronized with openwrt (OPTIONAL)
+```
+~# git remote add openwrt git://git.openwrt.org/12.09/openwrt.git
+```
+
 ```
 ~# make menuconfig
 ~# make
