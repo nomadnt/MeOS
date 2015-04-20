@@ -2,8 +2,8 @@
  * Name        : blink.c
  * Author      : Filippo Sallemi
  * Version     : 0.3.0
- * Copyright   : copyright 2014 Nomad NT
- * Description : MeOS rssi leds daemon header
+ * Copyright   : copyright 2015 Nomad NT
+ * Description : MeOS RSSI leds daemon header
  **/
 
 #ifndef BLINK_H_

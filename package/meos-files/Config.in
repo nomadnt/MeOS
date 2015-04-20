@@ -27,9 +27,7 @@ config PACKAGE_meos-files
 	select KMOD_BATMAN_ADV_BATCTL
 	
 	# Configuring libcurl options
-	#select LIBCURL_COOKIES
 	select LIBCURL_CRYPTO_AUTH
-	#select LIBCURL_FILE
 	select LIBCURL_HTTP
 	select LIBCURL_ZLIB
 	
@@ -40,4 +38,3 @@ config PACKAGE_meos-files
 	select PACKAGE_dropbear
 	select PACKAGE_firewall
 	select PACKAGE_tc
-	select PACKAGE_wpad

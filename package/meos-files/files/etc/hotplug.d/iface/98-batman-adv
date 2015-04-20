@@ -1,5 +1,5 @@
 #!/bin/sh
-# Copyright (C) 2009-2014 nomadnt.com
+# Copyright (C) 2009-2015 nomadnt.com
 
 . /lib/functions.sh
 
@@ -15,8 +15,9 @@
 		config_get network_coding $mesh network_coding 0
 		[ $network_coding -eq 1 ] && {
 			# Changing the mtu from 1524 to 1546
-			ip link set dev $INTERFACE promisc on
-			ip link set dev $INTERFACE mtu 1546
+			ifconfig $INTERFACE mtu 1546 promisc
+			#ip link set dev $INTERFACE promisc on
+			#ip link set dev $INTERFACE mtu 1546
 		}
 	}
 }
