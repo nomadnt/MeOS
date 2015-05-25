@@ -1,4 +1,0 @@
-config 'interface' 'wan'
-	option 'enabled' '0'
-	option 'download' '4096'
-	option 'upload' '256'

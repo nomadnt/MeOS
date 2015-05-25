@@ -1,6 +1,0 @@
-#!/bin/sh
-# Copyright (C) 2009-2014 nomadnt.com
-
-iptables -I INPUT -p tcp --dport 22 -j ACCEPT
-iptables -I INPUT -p tcp --dport 80 -j ACCEPT
-iptables -I INPUT -p tcp --dport 443 -j ACCEPT
