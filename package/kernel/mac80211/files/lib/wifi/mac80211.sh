@@ -102,15 +102,17 @@ config wifi-device  radio$devidx
 	option hwmode	11${mode_band}
 $dev_id
 $ht_capab
-	# REMOVE THIS LINE TO ENABLE WIFI:
-	option disabled 1
+	option disabled 0
 
-config wifi-iface
+config wifi-iface _msh0
+	option disabled 0
 	option device   radio$devidx
-	option network  lan
-	option mode     ap
-	option ssid     OpenWrt
+	option network  msh0
+	option mode     adhoc
+	option ssid     meos
+	option bssid	02:4D:65:4F:53:00
 	option encryption none
+	option mcast_rate 18000
 
 EOF
 	devidx=$(($devidx + 1))
