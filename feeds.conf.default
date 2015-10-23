@@ -1,3 +1,0 @@
-src-git packages https://github.com/openwrt/packages.git;for-14.07
-src-git routing https://github.com/openwrt-routing/packages.git;for-14.07
-#src-git nomadnt git://github.com/nomadnt/openwrt-packages.git;14.07.x
